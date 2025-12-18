@@ -10,6 +10,7 @@ local background = love.graphics.newImage("PNG/test3.jpg")
 local players = {}
 local GameTable = {}
 local buttons = {}
+local morePlayers = 0 -- change to 1 for 4 players
 
 --TODO 
 -- i don't think the bot's cards turn into "?" when i swap 'em
@@ -50,8 +51,11 @@ function love.load()
 
     table.insert(players, Player:new("Emi",1))
     table.insert(players, CPUPlayer:new(nil,2))
-    table.insert(players, CPUPlayer:new(nil,3))
-    table.insert(players, CPUPlayer:new(nil,4))
+
+    if morePlayers == 1 then
+        table.insert(players, CPUPlayer:new(nil,3))
+        table.insert(players, CPUPlayer:new(nil,4))
+    end
     
     for _, p in ipairs(players) do
         p:deal(GameTable.Deck, 4)
@@ -86,9 +90,11 @@ function love.update(dt)
         --end
 
         players[2]:play(GameTable,players,dt)
-        players[3]:play(GameTable,players,dt)
-        players[4]:play(GameTable,players,dt)
-        
+        if morePlayers == 1 then
+            players[3]:play(GameTable,players,dt)
+            players[4]:play(GameTable,players,dt)
+        end
+
         GameTable.turn:checkSpecialCards(GameTable.discard)
         GameTable.discard.used = true -- should be updated in the above function...
         GameTable.pulled = GameTable.turn.pulledCard
