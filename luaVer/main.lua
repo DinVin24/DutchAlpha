@@ -87,7 +87,7 @@ function love.update(dt)
         end
 
         players[2]:play(GameTable,players,dt)
-        if morePlayers == 1 then
+        if morePlayers == true then
             players[3]:play(GameTable,players,dt)
             players[4]:play(GameTable,players,dt)
         end
