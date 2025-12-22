@@ -1,5 +1,4 @@
 local Card = require "Card"
---local Animation = require "Animation"
 
 
 local Player = {}
@@ -19,19 +18,20 @@ function Player:new(name, index)
     self.isBot = false
     self.hand = {}
     self.score = 0
-    self.dutch = -1
-    self.cardTimer = 0
-    self.seeCards = 2
-    self.seeAnyCard = 0
+    self.dutch = -1 --starts with zero because when you press Dutch, it increments by one. And the condition is == 1
+    self.cardTimer = 0  -- how long you get to look at a card
+    self.seeCards = 2   -- start the round by looking at 2 cards
+    self.seeAnyCard = 0 -- incremented when dropping a Queen
     self.swap = {false, nil, nil} -- first value is if swapping, second and third are the cards to swap
-    self.turn = false
-    self.pulledCard = nil
-    self.pulled = false
-    self.jumpingIn = false
+    self.turn = false   -- is it my turn?
+    self.pulledCard = nil   -- the card i have pulled
+    self.pulled = false     -- have I pulled a card? used for clicking logic.
+    self.jumpingIn = false  -- am I jumping in? (have I pressed SPACE)
     return self
 end
 
 function Player:deal(deck, n)
+    --gets cards from the GameTable deck and assigns it positions.
     spacing = 100
     for i = 1, n do
         table.insert(self.hand, table.remove(deck))
@@ -47,6 +47,7 @@ function Player:calculateScore()
     self.score = 0
     for _, card in ipairs(self.hand) do
         if not (card.value == "king" and card.suit == "diamond") then
+            -- K of Diamonds = 0, every other card is its normal value (1-13)
             self.score = self.score + indexOf(Card.values, card.value)
         end
     end
@@ -54,6 +55,7 @@ function Player:calculateScore()
 end
 
 function Player:showHand()
+    --prints it in the console
     print(self.name .. "'s hand:")
     for _, card in ipairs(self.hand) do
         print(card.value .. " of " .. card.suit)
@@ -63,11 +65,10 @@ function Player:showHand()
 end
 
 function Player:getCardAt(x, y)
+    -- used for checking if I clicked a card
     for _, card in ipairs(self.hand) do
         if x >= card.fixedX and x <= card.fixedX + Card.WIDTH and
            y >= card.fixedY and y <= card.fixedY + Card.HEIGHT then
-            --print(indexOf(self.hand, card))
-            --print(x,y)
             return card
         end
     end
@@ -91,11 +92,12 @@ function Player:drawTips(players)
     end
 end
 
-function Player:revealCards(player, card)    
-    if self.seeAnyCard > 0 then
-        Animation.flipCard(card)  -- ANIMATION TEST
-        player.cardTimer = 0
-        self.seeAnyCard = self.seeAnyCard - 1
+function Player:revealCards(player, card)  
+                                                        --using a Queen on another player.  
+    if self.seeAnyCard > 0 then                         -- if i've used a queen
+        Animation.flipCard(card)                        -- flip the card
+        player.cardTimer = 0                            -- update their timer
+        self.seeAnyCard = self.seeAnyCard - 1           --decrement my queens
     end
 end
 
@@ -119,35 +121,46 @@ function Player:learnCards(clickedCard)
 end
 
 function Player:replaceCard(clickedCard, GameTable)
-    if self.pulledCard then -- replacing a card
-        GameTable.discard.value, GameTable.discard.suit = clickedCard.value, clickedCard.suit
-        GameTable.discard.used = false
+--this refers to pulling a card from the pile and then discarding from my deck
+-- it's used after clicking a card from my deck 
+    if self.pulledCard then
+        -- if i've pulled a card prior, then i'm replacing the clicked one
+        local dCard = GameTable.discardPile[#GameTable.discardPile]:getCard() --copying the card im discarding
+        dCard.value, dCard.suit = clickedCard.value, clickedCard.suit
+        dCard.used = false
 
-        GameTable.discard.x, GameTable.discard.y = clickedCard.x, clickedCard.y--animation
-        GameTable.discard.faceUp = false
-        Animation.flipCard(GameTable.discard)
-        Animation.moveCard(GameTable.discard, {x = GameTable.discard.fixedX, y = GameTable.discard.fixedY})
+        dCard.x, dCard.y = clickedCard.x, clickedCard.y--animation
+        dCard.faceUp = false
+        table.insert(GameTable.discardPile, dCard) -- adding the copy to the discard pile
+        local nr = #GameTable.discardPile
+        Animation.flipCard(GameTable.discardPile[nr])
+        Animation.moveCard(GameTable.discardPile[nr], {x = GameTable.discardPile[nr].fixedX, y = GameTable.discardPile[nr].fixedY})
 
-        clickedCard.value, clickedCard.suit = self.pulledCard.value, self.pulledCard.suit
+        clickedCard.value, clickedCard.suit = self.pulledCard.value, self.pulledCard.suit -- copying the card im keeping
 
         clickedCard.x, clickedCard.y = self.pulledCard.x, self.pulledCard.y
         Animation.moveCard(clickedCard, {x = clickedCard.fixedX, y = clickedCard.fixedY})
 
         self.pulledCard = nil
         self.pulled = true
+        self:checkSpecialCards(GameTable)
         return clickedCard
     end
 end
 
 function Player:jumpIn(clickedCard, GameTable)
     if self.jumpingIn then
-        if GameTable.discard.value == clickedCard.value then
-            GameTable.discard.value, GameTable.discard.suit = clickedCard.value, clickedCard.suit
+        if GameTable.discardPile[#GameTable.discardPile].value == clickedCard.value then
+            dCard = GameTable.discardPile[#GameTable.discardPile]:getCard()
+            dCard.value, dCard.suit = clickedCard.value, clickedCard.suit
 
-            GameTable.discard.x, GameTable.discard.y = clickedCard.x, clickedCard.y
-            Animation.moveCard(GameTable.discard, {x = GameTable.discard.fixedX, y = GameTable.discard.fixedY})
+            dCard.x, dCard.y = clickedCard.x, clickedCard.y
+            dCard.used = false
+            table.insert(GameTable.discardPile, dCard)
+            local nr = #GameTable.discardPile
+            self:checkSpecialCards(GameTable)
+            Animation.moveCard(GameTable.discardPile[nr], {x = GameTable.discardPile[nr].fixedX, y = GameTable.discardPile[nr].fixedY})
 
-            GameTable.discard.used = false
             table.remove(self.hand, indexOf(self.hand, clickedCard))
         else
             Animation.flipCard(clickedCard)
@@ -157,22 +170,24 @@ function Player:jumpIn(clickedCard, GameTable)
     end
 end
 
-function Player:discardCard(discard)
+function Player:discardCard(GameTable)
     if self.pulledCard then
+        discard = GameTable.discardPile[#GameTable.discardPile]:getCard()
         discard.value, discard.suit = self.pulledCard.value, self.pulledCard.suit
-        
         discard.x, discard.y = self.pulledCard.x, self.pulledCard.y
-        Animation.moveCard(discard,{x = discard.fixedX,y = discard.fixedY})
+        table.insert(GameTable.discardPile, discard)
+        local nr = #GameTable.discardPile
+        Animation.moveCard(GameTable.discardPile[nr],{x = GameTable.discardPile[nr].fixedX,y = GameTable.discardPile[nr].fixedY})
         
-        discard.used = false
+        GameTable.discardPile[nr].used = false
         self.pulledCard = nil
         self.pulled = true
-        return discard
+        self:checkSpecialCards(GameTable)
+        return GameTable.discardPile[nr]
     end
 end
 
 function Player:swapCards(card,players)
-    -- think of a better way to do this 
     if self.swap[1] == true and self.swap[2] == nil then
         self.swap[2] = card
     elseif self.swap[1] == true and self.swap[3] == nil then
@@ -204,16 +219,17 @@ function Player:swapCards(card,players)
     end
 end
 
-function Player:checkSpecialCards(card)
-    if not card then return end --safety check
+function Player:checkSpecialCards(GameTable)
+    card = GameTable.discardPile[#GameTable.discardPile]
+    if not card then return end
     if card.used == false then
         if card.value == "queen" then
             self.seeAnyCard = self.seeAnyCard + 1
         end
         if card.value == "jack" then
-            print("tryna swap 'em")
             self.swap = {true, nil, nil}
         end
+        card.used = true
     end
 end
 
@@ -253,11 +269,6 @@ function Player:recalculatePositions()
             card.y = card.fixedY
         end
     end
-end
-
-function Player:endTurn()
-    --put here all the variables that need to reset
-    --functions that need to be called
 end
 
 return Player

@@ -24,14 +24,13 @@ function drawDeck(Deck)
 end
 
 function clickedOwnCard(x,y,Players,GameTable)
-    --player = GameTable.turn
     player = Players[1] -- always the user
     local clickedCard = player:getCardAt(x, y)
-    if clickedCard then -- here's the click logic
+    if clickedCard then
+        player:swapCards(clickedCard, Players) --SPECIAL CARDS HAVE TO BE BEFORE JUMPING IN AND REPLACE
+        player:learnCards(clickedCard)         --SO YOU DON'T ACCIDENTALY USE IT
         player:jumpIn(clickedCard, GameTable)
-        player:learnCards(clickedCard)
         player:replaceCard(clickedCard, GameTable)
-        player:swapCards(clickedCard, Players)
         return clickedCard
     end
     return nil
@@ -61,14 +60,15 @@ function clickedDeck(x,y,player,deck)
     if player.isBot == false and player.turn and player.pulled == false and player.pulledCard == nil and 
     x > deckX and x < deckX+deckW and y>deckY and y < deckY+deckH and player.turn then
         player.pulledCard = table.remove(deck)
-        Animation.flipCard(player.pulledCard)  -- ANIMATION TEST
+        Animation.flipCard(player.pulledCard)
     end
     return nil
 end
 
-function clickedPile(x,y,player,discard)
+function clickedPile(x,y,player,GameTable)
+    discard = GameTable.discardPile[#GameTable.discardPile]
     if x > discard.fixedX and x < discard.fixedX + Card.WIDTH and y > discard.fixedY and y < discard.fixedY + Card.HEIGHT then
-        return player:discardCard(discard)
+        return player:discardCard(GameTable)
     end
     return nil
 end
@@ -81,35 +81,39 @@ function handleMousePressed(x, y, button, Players, GameTable)
 
         clickedDeck(x,y,GameTable.turn,GameTable.Deck)
 
-        clickedPile(x,y,GameTable.turn,GameTable.discard)
+        clickedPile(x,y,GameTable.turn,GameTable)
 
     end
     return nil
 end
 
-function handleKeyPress(key, player, players)
-    if key == "space" then --jumping in
+function handleKeyPress(key, player, players, GameTable)
+    if key == "space" then 
         player.jumpingIn = true
     end
     if key == "d" then
         player:checkDutch(players)
     end
-    if key == "c" and player.pulled then -- idk make a better check to finish one's turn
+    if key == "c" and player.pulled then
         player.turn = false
     end
-    if key == "l" then --funny
+    if key == "l" then -- show all cards
         for _, player in ipairs(players) do
             for i=1, #player.hand do
-                --player.hand[i].faceUp = true
-                Animation.flipCard(player.hand[i])  -- ANIMATION TEST
+                Animation.flipCard(player.hand[i])
             end
             player.cardTimer = 0
         end
     end
-    if key == "p" then --funny
+    if key == "p" then -- hide all cards
         for i=1, #player.hand do
             player.hand[i].faceUp = false
         end
+    end
+    if key == "q" then -- restart + add more players
+        GameTable.over = true
+        GameTable.g_morePlayers = not GameTable.g_morePlayers 
+        print(GameTable.g_morePlayers)
     end
 end
 
@@ -125,8 +129,11 @@ end
 
 function drawTable(GameTable)
     drawDeck(GameTable.Deck)
-    if GameTable.discard.value then
-        GameTable.discard:draw()
+    for i = #GameTable.discardPile-3, #GameTable.discardPile do
+        if GameTable.discardPile[i] and GameTable.discardPile[i].value then
+            GameTable.discardPile[i].faceUp = true
+            GameTable.discardPile[i]:draw()
+        end
     end
     if GameTable.pulled then
         GameTable.pulled:draw()

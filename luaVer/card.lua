@@ -1,3 +1,5 @@
+-- Manages the card positions, textures, drawing
+
 local Card = {}
 Card.__index = Card
 
@@ -17,6 +19,7 @@ Card.vPadding = 4 --2
 Card.quads = {}
 
 function Card.loadSpriteSheet(imagePath)
+--loads the sprite and divides it for each card
     Card.sprite = love.graphics.newImage(imagePath)
     for row = 0, 3 do
         for col = 0, 13 do
@@ -36,13 +39,13 @@ function Card:new(value, suit, x, y, faceUp)
     self.faceUp = faceUp or false
     self.x = x or 0
     self.y = y or 0
-    self.fixedX = x or 0
+    self.fixedX = x or 0 -- origial positions. like a target position for the animation to go back to
     self.fixedY = y or 0
     self.width = Card.WIDTH
     self.height = Card.HEIGHT
     self.scaleX = 1
     self.scaleY = 1
-    self.used = false
+    self.used = false --only refers to Queen or Jack
     self.animating = false
     return self
 end
@@ -65,7 +68,7 @@ function Card:draw(pozX,pozY,scaleX, scaleY)
     local xIndex = nil
     local yIndex = nil
     
-    for i, v in ipairs(Card.values) do
+    for i, v in ipairs(Card.values) do              --figuring out which quad to use from the spritesheet
         if v == self.value then xIndex = i end
     end
     for i, s in ipairs(Card.suits) do
@@ -77,11 +80,33 @@ function Card:draw(pozX,pozY,scaleX, scaleY)
         quadIndex = 28
     end
 
-    if self.animating then
+    if self.animating then  -- The animation updates the x/y coordinates frame by frame so we're drawing those
         love.graphics.draw(Card.sprite,Card.quads[quadIndex],self.x,self.y,0,self.scaleX,self.scaleY)
     else
+        -- if i'm not animating, it's safer to use the fixed positions because i have no idea what happens to x/y
+        -- i know it's an easy fix but I already have the fixed positions. it's safer.
         love.graphics.draw(Card.sprite,Card.quads[quadIndex],self.fixedX,self.fixedY,0)
     end
+end
+
+function Card:getCard()
+    --creates a new Card object, copies the source properties and returns itself to be assigned
+    -- i put in the discard coordinates because that's where i usually use this method
+    copy = Card:new(nil, nil, 598, 300, true)
+    for k, v in pairs(self) do
+        copy[k] = v
+    end
+    if copy.animating then
+        copy.faceUp = true
+        copy.width = Card.WIDTH
+        copy.height = Card.HEIGHT
+        copy.scaleX = 1
+        copy.scaleY = 1
+        copy.used = false
+        copy.animating = false
+    end
+
+    return copy
 end
 
 return Card

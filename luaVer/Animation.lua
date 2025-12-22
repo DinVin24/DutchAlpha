@@ -13,8 +13,6 @@ function Animation.flipCard(card, duration)
     card.scaleX = card.scaleX or 1
 
     local half = duration / 2
-    -- SE STRICA ANEUMATIA CAND FOLOSESC REGINA PE BOT
-    -- cred ca trb sa actualizez fixedX si Y
     flux.to(card, half, { scaleX = 0 })
     :onupdate(function()
         card.x = card.fixedX + (1-card.scaleX) * Card.WIDTH / 2

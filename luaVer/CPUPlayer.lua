@@ -56,10 +56,14 @@ function CPUPlayer:pull(GameTable)
             end
         end
     end
-    GameTable.discard.value, GameTable.discard.suit = discardedCard.value, discardedCard.suit
+    dCard = GameTable.discardPile[#GameTable.discardPile]:getCard()
+    dCard.value, dCard.suit = discardedCard.value, discardedCard.suit
 
-    GameTable.discard.x, GameTable.discard.y = discardedCard.x, discardedCard.y
-    Animation.moveCard(GameTable.discard, {x = GameTable.discard.fixedX, y = GameTable.discard.fixedY})
+    dCard.x, dCard.y = discardedCard.x, discardedCard.y
+    table.insert(GameTable.discardPile, dCard)
+    local nr = #GameTable.discardPile
+    self:checkSpecialCards(GameTable)
+    Animation.moveCard(GameTable.discardPile[nr], {x = GameTable.discardPile[nr].fixedX, y = GameTable.discardPile[nr].fixedY})
 
     if discardedCard.value == "queen" then
         self:useQueen()
@@ -80,7 +84,6 @@ function CPUPlayer:calculateKnownScore()
            score = score + indexOf(Card.values, self.knownCards[i].value) 
         end
     end
-    print(score) --DEBUG
     return score
 end
 
@@ -89,7 +92,6 @@ function CPUPlayer:callDutch(players)
     if self.dutch < 1 then
         if self:calculateKnownScore() <= 7 then
             self.dutch = self.dutch + 1
-            print("CPU called Dutch")
         end
     end
 end
@@ -98,16 +100,18 @@ function CPUPlayer:jumpIn(GameTable,dt)
     self.jumpTimer = self.jumpTimer + dt
     if self.jumpTimer < 0.7 then return
     else self.jumpTimer = 0 end
-    -- sometimes crashes for some reason, idk
     for i = #self.knownCards, 1, -1 do
         if self.knownCards[i] ~= "?" and self.knownCards[i] ~= nil
            and not (self.knownCards[i].value == "king" and self.knownCards[i].suit == "diamond") then
             local card = self.knownCards[i]
-            if card.value == GameTable.discard.value then  --if cards match
-                GameTable.discard.suit = card.suit
-
-                GameTable.discard.x, GameTable.discard.y = self.hand[i].x, self.hand[i].y
-                Animation.moveCard(GameTable.discard,{x = GameTable.discard.fixedX, GameTable.discard.fixedY})
+            if card.value == GameTable.discardPile[#GameTable.discardPile].value then  --if cards match
+                dCard = GameTable.discardPile[#GameTable.discardPile]:getCard()
+                dCard.suit = card.suit
+                dCard.x, dCard.y = self.hand[i].x, self.hand[i].y
+                table.insert(GameTable.discardPile, dCard)
+                local nr = #GameTable.discardPile
+                self:checkSpecialCards(GameTable)
+                Animation.moveCard(GameTable.discardPile[nr],{x = GameTable.discardPile[nr].fixedX, GameTable.discardPile[nr].fixedY})
 
                 print("CPU jumped in with", card.value, card.suit) --DEBUG
                 table.remove(self.hand, i)
@@ -150,11 +154,8 @@ function CPUPlayer:thinking()
 end
 
 function CPUPlayer:play(GameTable,players,dt)
-    -- unfinished stuff: if i swap cpu's card, it doesn't update as a "?"
-    -- add all the functions here so i can call only this in love.update
     if self.turn then
         if self.thinkingTime == 3 then
-            print("BOT played the turn")
             self:pull(GameTable)
             self:callDutch(players)
         end

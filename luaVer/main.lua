@@ -10,13 +10,11 @@ local background = love.graphics.newImage("PNG/test3.jpg")
 local players = {}
 local GameTable = {}
 local buttons = {}
-local morePlayers = 0 -- change to 1 for 4 players
+local morePlayers = false -- change to 1 for 4 players, 0 for 2 players
 
---TODO 
+
+--KNOWN BUGS:
 -- i don't think the bot's cards turn into "?" when i swap 'em
---make it wait a bit after the last card is discarded
---also show on screen when someone calls dutch
---cant use queen/jack if i jump in
 
 function love.mousepressed(x, y, button) -- button referes to mouse button
     handleMousePressed(x, y, button, players, GameTable)
@@ -24,16 +22,18 @@ function love.mousepressed(x, y, button) -- button referes to mouse button
 end
 
 function love.keypressed(key)
-    handleKeyPress(key, players[1], players)
+    handleKeyPress(key, players[1], players, GameTable)
 end
 
 function love.load()
     GameTable = {
+    g_morePlayers = morePlayers,
     Deck = {},
-    discard = Card:new(nil, nil, 598, 300, true),
+    discardPile = {Card:new(nil, nil, 598, 300, true)},
     pulled = nil,
     over = false,
     turn = nil}
+    
     players = {}
     buttons = {}
 
@@ -49,10 +49,10 @@ function love.load()
 
     shuffle(GameTable.Deck)
 
-    table.insert(players, Player:new("Emi",1))
+    table.insert(players, Player:new("Daniel",1))
     table.insert(players, CPUPlayer:new(nil,2))
 
-    if morePlayers == 1 then
+    if morePlayers == true then
         table.insert(players, CPUPlayer:new(nil,3))
         table.insert(players, CPUPlayer:new(nil,4))
     end
@@ -63,7 +63,7 @@ function love.load()
         if p.isBot then
             p:learnCards()
         end
-        p:showHand()--DEBUG
+        --p:showHand()
     end
     GameTable.turn = players[1]
     players[1].turn = true
@@ -71,10 +71,10 @@ end
 
 function love.update(dt)
     Button.updateAll(buttons, GameTable, players)
-    Animation.update(dt)   -- ANIMATION TEST
+    Animation.update(dt)
     if not GameTable.over then
         for _, p in ipairs(players) do
-            p:updateCards(dt) -- ANIMATION TEST
+            p:updateCards(dt) 
         end
         if GameTable.turn.turn == false then
             GameTable.turn.pulled = false
@@ -85,9 +85,6 @@ function love.update(dt)
             end
             GameTable.turn.turn = true
         end
-        --if GameTable.turn.isBot then
-        --    GameTable.turn:playTurn(GameTable,dt)
-        --end
 
         players[2]:play(GameTable,players,dt)
         if morePlayers == 1 then
@@ -95,13 +92,12 @@ function love.update(dt)
             players[4]:play(GameTable,players,dt)
         end
 
-        GameTable.turn:checkSpecialCards(GameTable.discard)
-        GameTable.discard.used = true -- should be updated in the above function...
         GameTable.pulled = GameTable.turn.pulledCard
         if GameTable.turn.dutch==1 or #GameTable.turn.hand == 0 then
             GameTable.over = true
         end
     else
+        morePlayers = GameTable.g_morePlayers
         for _, p in ipairs(players) do
             for _, card in ipairs(p.hand) do
                 card.faceUp = true
@@ -126,11 +122,3 @@ function love.draw()
         end
     end
 end
-
---draw all cards:
---   for i, card in ipairs(Deck) do
---        local x = (i-1) % 13
---        local y = math.floor((i-1) / 13)
---        print(x, y)
---        drawCard(Deck[i], 50 * x, 100 * y)
---   end
