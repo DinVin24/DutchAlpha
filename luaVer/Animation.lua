@@ -1,4 +1,5 @@
 local flux = require "flux"
+local Card = require "Card"
 
 local Animation = {}
 
@@ -14,19 +15,19 @@ function Animation.flipCard(card, duration)
 
     local half = duration / 2
     flux.to(card, half, { scaleX = 0 })
-    :onupdate(function()
-        card.x = card.fixedX + (1-card.scaleX) * Card.WIDTH / 2
-    end)
-    :oncomplete(function()
-        card.faceUp = not card.faceUp
-        flux.to(card, half, { scaleX = 1 })
         :onupdate(function()
-            card.x = card.fixedX + (1-card.scaleX) * Card.WIDTH / 2
+            card.x = card.fixedX + (1 - card.scaleX) * Card.WIDTH / 2
         end)
         :oncomplete(function()
-            card.animating = false
+            card.faceUp = not card.faceUp
+            flux.to(card, half, { scaleX = 1 })
+                :onupdate(function()
+                    card.x = card.fixedX + (1 - card.scaleX) * Card.WIDTH / 2
+                end)
+                :oncomplete(function()
+                    card.animating = false
+                end)
         end)
-    end)
 end
 
 function Animation.moveCard(card, targetPos, duration, easing)
